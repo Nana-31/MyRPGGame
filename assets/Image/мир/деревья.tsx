@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tileset version="1.10" tiledversion="1.11.2" name="деревья" tilewidth="64" tileheight="64" tilecount="96" columns="24">
+ <image source="../../../../../Desktop/тайлы/Tiny Swords (Free Pack)/Terrain/Resources/Wood/Trees/Tree2.png" width="1536" height="256"/>
+</tileset>
