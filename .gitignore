@@ -1,2 +1,6 @@
 ﻿/.vs/
 /.vs/
+x64/
+Release/
+*.obj
+*.exe
