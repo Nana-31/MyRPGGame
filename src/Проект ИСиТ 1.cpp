@@ -11,117 +11,154 @@
 #include "json.hpp"
 using json = nlohmann::json;
 
-
 float sceneWidth = 1280;
 float sceneHight = 720;
 
 class FontManager {
-
 public:
-
     Color textColor = { 200, 200, 200, 255 };
     int count = 0;
     const char* kirr = u8" абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,!?-+/():;=<>*";
-    int* codecount = LoadCodepoints(kirr, &count);
-    Font font = LoadFontEx("casio-fx-9860gii.ttf", 40, codecount, count);
+    int* codecount = nullptr;
+    Font font;
 
-    void DrawMyText(const char* text, float size, Vector2 pos, Color col) {
-
-        DrawTextEx(font, text, pos, size, 2, col);
-
+    FontManager() {
+        codecount = LoadCodepoints(kirr, &count);
+        font = LoadFontEx("casio-fx-9860gii.ttf", 40, codecount, count);
     }
 
+    void DrawMyText(const char* text, float size, Vector2 pos, Color col, int a) {
+        DrawTextEx(font, text, pos, size, a, col);
+    }
 };
 
 class Button {
-
     FontManager font;
-    Color buttonColor = { 61, 19, 19, 255 };
-    
+    Color textColor = { 102, 102, 75, 255 };
+    Color textHoverColor = { 210, 210, 160, 255 };
+
+    Texture2D buttonNormalTex;
+    Texture2D buttonHoverTex;
+    bool texturesLoaded = false;
+    NPatchInfo patchInfo;
 
 public:
+    Rectangle start;
+    Rectangle setting;
+    Rectangle exit;
+    Rectangle back; 
 
-    Rectangle start = { sceneWidth/2-300, sceneHight/2-90, 200, 40};
-    Rectangle setting = { sceneWidth / 2 - 300, sceneHight / 2 - 30, 200, 40 };
-    Rectangle exit = { sceneWidth / 2 - 300, sceneHight / 2 + 30, 200, 40 };
+    Button() { texturesLoaded = false; }
 
+    void InitTextures(const char* normalPath, const char* hoverPath) {
+        buttonNormalTex = LoadTexture(normalPath);
+        buttonHoverTex = LoadTexture(hoverPath);
+        patchInfo.source = { 0.0f, 0.0f, (float)buttonNormalTex.width, (float)buttonNormalTex.height };
+        patchInfo.left = 12; patchInfo.top = 12; patchInfo.right = 12; patchInfo.bottom = 12;
+        patchInfo.layout = NPATCH_NINE_PATCH;
+        texturesLoaded = true;
+    }
 
-    void Draw() {
+    ~Button() {
+        if (texturesLoaded) {
+            UnloadTexture(buttonNormalTex);
+            UnloadTexture(buttonHoverTex);
+        }
+    }
 
-        DrawRectangleRec(start, buttonColor);
-        DrawRectangleRec(setting, buttonColor);
-        DrawRectangleRec(exit, buttonColor);
-        font.DrawMyText(u8"ISiT", 40, {600, 75}, font.textColor);
-        font.DrawMyText("Play!", 30, { start.x+55, start.y +8}, font.textColor);
-        font.DrawMyText("Setting", 30, {setting.x+20, setting.y+5}, font.textColor);
-        font.DrawMyText("Exit", 30, {exit.x+55, exit.y+8}, font.textColor);
+    void UpdateLayout() {
+        float sw = (float)GetScreenWidth();
+        float sh = (float)GetScreenHeight();
+        float btnWidth = 340; float btnHeight = 45; float spacing = 15;
+        float btnX = sw / 2 - btnWidth / 2;
 
+        setting = { btnX, sh / 2 - btnHeight / 2, btnWidth, btnHeight };
+        start = { btnX, setting.y - btnHeight - spacing, btnWidth, btnHeight };
+        exit = { btnX, setting.y + btnHeight + spacing, btnWidth, btnHeight };
+        back = { btnX, sh / 2 + 100, btnWidth, btnHeight };
+    }
+
+    void DrawSingleButton(Rectangle rect, const char* text, float fontSize, float spacingValue) {
+        Vector2 mousePos = GetMousePosition();
+        bool isHovered = CheckCollisionPointRec(mousePos, rect);
+
+        if (texturesLoaded) {
+            Texture2D currentTex = isHovered ? buttonHoverTex : buttonNormalTex;
+            DrawTextureNPatch(currentTex, patchInfo, rect, { 0, 0 }, 0.0f, WHITE);
+        }
+        else {
+            Color fallbackColor = isHovered ? Color{ 55, 55, 55, 255 } : Color{ 35, 35, 35, 255 };
+            DrawRectangleRec(rect, fallbackColor);
+        }
+        Vector2 textSize = MeasureTextEx(font.font, text, fontSize, spacingValue);
+
+        float textX = rect.x + (rect.width - textSize.x) / 2.0f;
+        float textY = rect.y + (rect.height - textSize.y) / 2.0f;
+
+        Color currentTextColor = isHovered ? textHoverColor : textColor;
+        font.DrawMyText(text, fontSize, { textX, textY }, currentTextColor, spacingValue);
     }
 
 
+    void DrawMainMenu() {
+        UpdateLayout();
+        DrawSingleButton(start, "Play!", 30, 2);
+        DrawSingleButton(setting, "Setting", 30, 2);
+        DrawSingleButton(exit, "Exit", 30, 2);
+        Vector2 titleSize = MeasureTextEx(font.font, u8"ISiT", 50, 2);
+        float titleX = (float)GetScreenWidth() / 2 - titleSize.x / 2;
+        float titleY = start.y - 70;
+
+    }
+
 };
+
+
+
 
 class Dialogues {
 public:
-
-    void initD(const char *put) {
+    void initD(const char* put) {
         Image im = LoadImage(put);
         dialog = LoadTextureFromImage(im);
         UnloadImage(im);
     }
     void drawD(float x, float y, Color z) {
-        DrawTexturePro(dialog, {0, 0, (float)dialog.width, (float)dialog.height}, {x, y, (float)dialog.width*3, (float)dialog.height*2}, {0, 0},0.0f, z );
+        DrawTexturePro(dialog, { 0, 0, (float)dialog.width, (float)dialog.height }, { x, y, (float)dialog.width * 3, (float)dialog.height * 2 }, { 0, 0 }, 0.0f, z);
     }
 private:
     Texture2D dialog;
-    Rectangle src;
-    Rectangle dest;
-
 };
 
-
 class MainMenu {
-
 public:
-
     Texture2D fonM;
-    Rectangle rec2 = { 130, 65, 30, 40 };
 
     MainMenu() {
-
-        Image image = LoadImage("assets/Image/FreeHorrorUi.png");
+        Image image = LoadImage("assets/Image/main_menu.jpg");
         fonM = LoadTextureFromImage(image);
-
+        UnloadImage(image);
     }
 
     void Draw() {
-
-        Color fon = { 61, 30, 30 , 255 };
-        ClearBackground(fon);
-
-        Rectangle rec = {128, 0, 120, 65};
-        Rectangle dest = {100, 10, 120*10, 65*10};
-        DrawTexturePro(fonM, rec, dest, {0,0}, 0.0f, WHITE);
-
-        Rectangle dest2 = {800, 270, 30*5, 40*5};
-        DrawTexturePro(fonM, rec2, dest2, {0,0}, 0.0f, WHITE);
-
+        Rectangle srcRec = { 0.0f, 0.0f, (float)fonM.width, (float)fonM.height };
+        Rectangle destRec = { 0.0f, 0.0f, (float)GetScreenWidth(), (float)GetScreenHeight() };
+        DrawTexturePro(fonM, srcRec, destRec, { 0, 0 }, 0.0f, WHITE);
     }
-
-    
 };
 
 class Game {
-
 public:
-
+    Vector2 worldOffset = { 0, 0 };
     bool inMenu = true;
+    bool inSettings = false; 
+    bool audioMuted = false; 
     bool close = false;
     bool isSoundMain = false;
     bool isSoundOpen = false;
     Camera2D camOsn;
     map myMap;
-    Color gameBack = { 102, 157, 157, 255 };
+    Color gameBack = { 131, 154, 94, 255 };
     Sound soundMain;
     Sound soundOpen;
     Dialogues d1;
@@ -131,8 +168,8 @@ public:
     std::vector<std::string> dial_With_NPC;
     std::vector<std::string> dial_ths;
     std::vector<std::string> thoughts;
-    int pods = 0;
     NPC npc;
+    
 
     void file_open() {
         std::ifstream file("data/npcs.json");
@@ -145,43 +182,47 @@ public:
         std::string content = buffer.str();
         file.close();
         gameData = json::parse(content);
-        thoughts= gameData["intro_thoughts"];
-        dial_ths = gameData["npcs"][2]["dialogues"];
+        thoughts = gameData["intro_thoughts"];
+        dial_ths = gameData["npcs"][0]["dialogues"];
     }
-    
-   
-    Game()
-    {
-        camOsn.offset = {sceneWidth/2, sceneHight/2};
+
+    Game() {
+        camOsn.offset = { sceneWidth / 2, sceneHight / 2 };
         camOsn.zoom = 2.0;
         camOsn.rotation = 0.0;
         myMap.Tex();
         myMap.loadMap("data/мир_Слой тайлов 1.csv", myMap.grassLayer);
         myMap.loadMap("data/мир_деревья.csv", myMap.treesLayer);
         d1.initD("assets/Image/DialogueBoxSimple.png");
+        button.InitTextures("assets/Image/one.png", "assets/Image/tue.png");
         soundMain = LoadSound("assets/sounds/Crying_moaning_ambience_2.wav");
         soundOpen = LoadSound("assets/sounds/Door_squeeky_2.wav");
         file_open();
-        npc= NPC{ DOWN, {300, 200}, "", "assets/Image/c2_idle.png  (1).png" };
+        npc = NPC{ DOWN, {300, 200}, "", "assets/Image/c2_idle.png  (1).png" };
     }
 
     ~Game() {
         UnloadSound(soundMain);
         UnloadSound(soundOpen);
     }
-    
+
     MainMenu menu;
     Player player;
     Button button;
     FontManager font;
 
     void sound() {
-        if (inMenu && !isSoundMain) {
+        if (audioMuted) {
+            if (IsSoundPlaying(soundMain)) StopSound(soundMain);
+            return;
+        }
+
+        if ((inMenu || inSettings) && !isSoundMain) {
             PlaySound(soundMain);
             isSoundMain = true;
             isSoundOpen = false;
         }
-        else if(!inMenu && !isSoundOpen){
+        else if (!inMenu && !inSettings && !isSoundOpen) {
             StopSound(soundMain);
             PlaySound(soundOpen);
             isSoundMain = false;
@@ -190,36 +231,52 @@ public:
     }
 
     void Update() {
+        sceneWidth = (float)GetScreenWidth();
+        sceneHight = (float)GetScreenHeight();
+
+        camOsn.offset = { sceneWidth / 2, sceneHight / 2 };
+
+        button.UpdateLayout();
 
         Vector2 mouse = GetMousePosition();
-        camOsn.target.x=player.pos.x + (player.widthF*player.scale)/2;
+        camOsn.target.x = player.pos.x + (player.widthF * player.scale) / 2;
         camOsn.target.y = player.pos.y + (player.heighF * player.scale) / 2;
+
 
         if (inMenu) {
             if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-
                 if (CheckCollisionPointRec(mouse, button.start)) {
                     inMenu = false;
                     dial_With_NPC = thoughts;
                     isDial = true;
                     phraseId = 0;
                 }
-
                 if (CheckCollisionPointRec(mouse, button.setting)) {
-
-
-
+                    inMenu = false;    
+                    inSettings = true;  
                 }
-
                 if (CheckCollisionPointRec(mouse, button.exit)) {
-
                     close = true;
-
+                }
+            }
+        }
+        else if (inSettings) {
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                if (CheckCollisionPointRec(mouse, button.start)) {
+                    audioMuted = !audioMuted;
+                    if (audioMuted) SetMasterVolume(0.0f); 
+                    else SetMasterVolume(1.0f);         
+                }
+                if (CheckCollisionPointRec(mouse, button.setting)) {
+                    ToggleBorderlessWindowed();
+                }
+                if (CheckCollisionPointRec(mouse, button.back)) {
+                    inSettings = false;
+                    inMenu = true;
                 }
             }
         }
         else {
-          
             if (IsKeyPressed(KEY_E)) {
                 if (!isDial) {
                     if (npc.neighbour(&player)) {
@@ -235,70 +292,77 @@ public:
                     }
                 }
             }
-            
-            
         }
         sound();
     }
 
-
     void Draw() {
-
         BeginDrawing();
         ClearBackground(gameBack);
         if (inMenu) {
             menu.Draw();
-            button.Draw();
+            button.DrawMainMenu();
+        }
+        else if (inSettings) {
+            menu.Draw(); 
+
+            std::string soundText = audioMuted ? "Sound: OFF" : "Sound: ON";
+            std::string screenText = IsWindowFullscreen() ? "Screen: Full" : "Screen: Window";
+
+            button.DrawSingleButton(button.start, soundText.c_str(), 30, 2);
+            button.DrawSingleButton(button.setting, screenText.c_str(), 30, 2);
+            button.DrawSingleButton(button.back, "Back", 30, 2);
+
+            float titleTextWidth = MeasureText("SETTINGS", 40);
+            font.DrawMyText("SETTINGS", 40, { (float)GetScreenWidth() / 2 - titleTextWidth / 2, button.start.y - 70 }, font.textColor, 2);
         }
         else {
             BeginMode2D(camOsn);
-            myMap.drawLayer(myMap.grassLayer, myMap.grassSprite, myMap.valueGrassMap);
+            DrawRectangleV(worldOffset, { (float)GetScreenWidth(), (float)GetScreenHeight() }, gameBack);
+            myMap.drawLayer(myMap.grassLayer, myMap.grassSprite, myMap.valueGrassMap, player.pos);
             player.Draw();
             npc.Draw();
-            myMap.drawLayer(myMap.treesLayer, myMap.treesSprite, myMap.valueTreesMap);
-            //font.DrawMyText(u8"Привет !", 40, { 100, 100 });
+            myMap.drawLayer(myMap.treesLayer, myMap.treesSprite, myMap.valueTreesMap, player.pos);
             EndMode2D();
-            if (npc.neighbour(&player) && !isDial ) {
-                d1.drawD(160, 560, BLUE);
-                font.DrawMyText(u8"Нажмите E, чтобы взаимодействовать \nс людьми и предметами", 25, {190, 590}, BLACK);
+
+            float dialogX = sceneWidth / 2 - (384 * 3) / 2; 
+            float dialogY = sceneHight - 180;
+
+            if (npc.neighbour(&player) && !isDial) {
+                d1.drawD(dialogX, dialogY, GRAY);
+                font.DrawMyText(u8"Нажмите E, чтобы взаимодействовать \nс людьми и предметами", 25, { dialogX + 30, dialogY + 30 }, BLACK, 2);
             }
             if (isDial) {
-                d1.drawD(160, 560, GRAY);
-                font.DrawMyText(dial_With_NPC[phraseId].c_str(), 25, { 190, 590 }, BLACK);
-
+                d1.drawD(dialogX, dialogY, GRAY);
+                font.DrawMyText(dial_With_NPC[phraseId].c_str(), 25, { dialogX + 30, dialogY + 30 }, BLACK, 2);
             }
-
         }
-
         EndDrawing();
-
     }
- 
-
 };
 
 int main() {
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
 
     InitWindow(sceneWidth, sceneHight, u8"Проект ИСиТ 1");
     SetTargetFPS(60);
     InitAudioDevice();
 
     Game game;
- 
+
     while (!WindowShouldClose() && !game.close) {
+        if (IsKeyPressed(KEY_F11)) {
+            ToggleBorderlessWindowed();
+        }
 
         if (!game.inMenu && !game.isDial) {
-
             game.player.Update();
             game.npc.textureUpdate();
-
         }
         game.Update();
         game.Draw();
-
     }
 
     CloseWindow();
-
     return 0;
 }

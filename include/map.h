@@ -19,9 +19,11 @@ public:
 	int mapH = 10;
 	int Width = 64;
 	int Height = 64;
+
 	void Tex();
-	void loadMap(const std::string& mapFile, std::vector<int>&layer);
-	void drawLayer(const std::vector<int>&layer, Texture2D sprite, std::map<int, Rectangle>&map);
+	void loadMap(const std::string& mapFile, std::vector<int>& layer);
+	void drawLayer(const std::vector<int>& layer, Texture2D sprite, std::map<int, Rectangle>& tileMap, Vector2 playerPos);
+
 	std::map<int, Rectangle> valueGrassMap;
 	std::map<int, Rectangle> valueTreesMap;
 	std::vector<int> grassLayer;
