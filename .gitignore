@@ -4,3 +4,9 @@ x64/
 Release/
 *.obj
 *.exe
+*.user
+*.filters
+.vs/
+x64/
+Debug/
+Release/
