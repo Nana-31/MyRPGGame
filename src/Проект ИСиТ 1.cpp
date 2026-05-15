@@ -26,7 +26,7 @@ public:
         codecount = LoadCodepoints(kirr, &count);
         font = LoadFontEx("casio-fx-9860gii.ttf", 40, codecount, count);
     }
-
+   
     void DrawMyText(const char* text, float size, Vector2 pos, Color col, int a) {
         DrawTextEx(font, text, pos, size, a, col);
     }
